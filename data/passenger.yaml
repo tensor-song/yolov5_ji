@@ -1,0 +1,7 @@
+train: /project/train/src_repo/dataset/train.txt
+val: /project/train/src_repo/dataset/val.txt
+# number of classes
+nc: 19
+# class names
+names: ['head','white_XP_badge','blue_XP_badge','black_XP_badge','white_BH_badge','blue_BH_badge','male','female','0-5','6-10',
+'11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100']

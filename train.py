@@ -67,6 +67,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     callbacks.run('on_pretrain_routine_start')
 
+    save_dir2 = Path('/project/train/tensorboard/')
     # Directories
     w = save_dir / 'weights'  # weights dir
     (w.parent if evolve else w).mkdir(parents=True, exist_ok=True)  # make dir
@@ -88,7 +89,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Loggers
     data_dict = None
     if RANK in {-1, 0}:
-        loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
+        loggers = Loggers(save_dir2, weights, opt, hyp, LOGGER)  # loggers instance
         if loggers.wandb:
             data_dict = loggers.wandb.data_dict
             if resume:
@@ -277,7 +278,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Model attributes
     nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps)
     hyp['box'] *= 3 / nl  # scale to layers
-    hyp['cls'] *= nc / 80 * 3 / nl  # scale to classes and layers
+    hyp['cls'] *= nc / 80 * 3 / nl  # scale to classes and layers #######
+    # hyp['cls'] *= nc / 80 * 3 / nl  # scale to classes and layers
     hyp['obj'] *= (imgsz / 640) ** 2 * 3 / nl  # scale to image size and layers
     hyp['label_smoothing'] = opt.label_smoothing
     model.nc = nc  # attach number of classes to model
@@ -299,7 +301,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     callbacks.run('on_train_start')
     LOGGER.info(f'Image sizes {imgsz} train, {imgsz} val\n'
                 f'Using {train_loader.num_workers * WORLD_SIZE} dataloader workers\n'
-                f"Logging results to {colorstr('bold', save_dir)}\n"
+                f"Logging results to {colorstr('bold', save_dir2)}\n"
                 f'Starting training for {epochs} epochs...')
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
@@ -478,13 +480,23 @@ def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
-    parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
-    parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
+    parser.add_argument('--data', type=str,
+                        default=ROOT / 'data/passenger.yaml',
+                        help='dataset.yaml path')
+    parser.add_argument('--hyp', type=str,
+                        default=ROOT / 'data/hyps/hyp.scratch-low.yaml',
+                        help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=300)
-    parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
-    parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
+    parser.add_argument('--batch-size', type=int,
+                        default=16,
+                        help='total batch size for all GPUs, -1 for autobatch')
+    parser.add_argument('--imgsz', '--img', '--img-size', type=int,
+                        default=640,
+                        help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
-    parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
+    parser.add_argument('--resume', nargs='?', const=True,
+                        default=False,
+                        help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
     parser.add_argument('--noval', action='store_true', help='only validate final epoch')
     parser.add_argument('--noautoanchor', action='store_true', help='disable AutoAnchor')
@@ -492,16 +504,24 @@ def parse_opt(known=False):
     parser.add_argument('--evolve', type=int, nargs='?', const=300, help='evolve hyperparameters for x generations')
     parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
     parser.add_argument('--cache', type=str, nargs='?', const='ram', help='--cache images in "ram" (default) or "disk"')
-    parser.add_argument('--image-weights', action='store_true', help='use weighted image selection for training')
+    parser.add_argument('--image-weights', action='store_true',
+                        help='use weighted image selection for training')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%%')
-    parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
+    parser.add_argument('--multi-scale', action='store_true',
+                        help='vary img-size +/- 50%%')
+    parser.add_argument('--single-cls', action='store_true',
+                        help='train multi-class data as single-class')
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
-    parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
+    parser.add_argument('--project',
+                        # default=ROOT / 'runs/train',
+                        default='/project/train/models',
+                        help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
-    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--exist-ok', action='store_true',
+                        default=True,
+                        help='existing project/name ok, do not increment')
     parser.add_argument('--quad', action='store_true', help='quad dataloader')
     parser.add_argument('--cos-lr', action='store_true', help='cosine LR scheduler')
     parser.add_argument('--label-smoothing', type=float, default=0.0, help='Label smoothing epsilon')
